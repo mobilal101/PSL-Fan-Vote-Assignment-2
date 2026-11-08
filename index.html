@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PSL Fan Vote dApp</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- ethers.js v6 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Image (small trophy SVG, embedded so no extra file is needed) -->
+    <img class="logo" alt="Trophy"
+         src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='M30 15h40v25a20 20 0 0 1-40 0z' fill='%23f59e0b'/><path d='M30 22H15c0 15 8 22 18 24M70 22h15c0 15-8 22-18 24' fill='none' stroke='%23f59e0b' stroke-width='5'/><rect x='44' y='58' width='12' height='16' fill='%23d97706'/><rect x='30' y='74' width='40' height='10' rx='3' fill='%231e3a8a'/></svg>">
+
+    <!-- Headings and paragraph -->
+    <h1>PSL Fan Vote</h1>
+    <p class="tagline">Which team will lift the trophy? Vote on the blockchain!</p>
+    <p>
+      This is a decentralized application (dApp) for
+      <b>MG3012 - Blockchain Technology for Business</b>.
+      Every wallet gets <b>one vote</b>, and all votes are stored in a smart
+      contract on the <b>Sepolia</b> test network, so nobody can cheat or change them.
+    </p>
+
+    <!-- List -->
+    <h2>How to play</h2>
+    <ol>
+      <li>Open MetaMask and select the Sepolia network.</li>
+      <li>Click "Connect MetaMask".</li>
+      <li>Press "Vote" next to your favourite team and confirm in MetaMask.</li>
+      <li>Watch the live bars update. The leader gets a crown!</li>
+    </ol>
+
+    <!-- Wallet section -->
+    <h2>1. Wallet</h2>
+    <button id="connectBtn">Connect MetaMask</button>
+    <div class="box">
+      Account: <span id="account">Not connected</span><br>
+      Your vote: <span id="myVote">-</span>
+    </div>
+
+    <!-- Poll section -->
+    <h2>2. Live Results</h2>
+    <p class="stats">Total votes: <b id="total">0</b></p>
+    <div id="teams"></div>
+    <button id="refreshBtn" class="secondary">Refresh Results</button>
+
+    <!-- Owner section -->
+    <h2>3. Admin (owner only)</h2>
+    <button id="closeBtn" class="secondary">Close Poll</button>
+    <button id="openBtn" class="secondary">Open Poll</button>
+
+    <!-- Result -->
+    <h2>Transaction Result</h2>
+    <div class="box">
+      <p id="status">Waiting...</p>
+      <p>Tx Hash: <span id="txHash">-</span></p>
+      <p><a id="txLink" href="#" target="_blank" style="display:none">View on Sepolia Etherscan</a></p>
+    </div>
+
+    <!-- Links -->
+    <h2>Useful Links</h2>
+    <ul>
+      <li><a href="https://remix.ethereum.org" target="_blank">Remix IDE</a></li>
+      <li><a href="https://metamask.io" target="_blank">MetaMask</a></li>
+      <li><a href="https://sepolia.etherscan.io" target="_blank">Sepolia Etherscan</a></li>
+    </ul>
+
+    <footer>
+      Contract: <span id="contractAddr"></span><br>
+      Made by: Muhammad Bilal (24I-5526)
+    </footer>
+  </div>
+
+  <script>
+    // ====== CHANGE THIS to your deployed contract address ======
+    const CONTRACT_ADDRESS = "0x4476b947d2754f2d6896d733d7a74175952f980d";
+
+    // Simple (human-readable) ABI of our contract
+    const ABI = [
+      "function vote(uint256 teamId)",
+      "function setPollOpen(bool _open)",
+      "function getResults() view returns (string[] names, uint256[] counts)",
+      "function getTotalVotes() view returns (uint256)",
+      "function hasUserVoted(address user) view returns (bool)"
+    ];
+
+    const SEPOLIA_CHAIN_ID = "0xaa36a7"; // 11155111 in hex
+
+    let provider, signer, contract, userAddress;
+
+    const $ = (id) => document.getElementById(id);
+    $("contractAddr").innerText = CONTRACT_ADDRESS;
+
+    function setStatus(text) {
+      $("status").innerText = text;
+    }
+
+    // Connect MetaMask and make sure we are on Sepolia
+    async function connectWallet() {
+      if (!window.ethereum) {
+        setStatus("MetaMask not found. Please install it.");
+        return;
+      }
+      try {
+        provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+
+        try {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: SEPOLIA_CHAIN_ID }]
+          });
+        } catch (e) {
+          setStatus("Please switch MetaMask to the Sepolia network.");
+          return;
+        }
+
+        // re-create provider after network switch
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
+        contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+        $("account").innerText = userAddress;
+        setStatus("Wallet connected on Sepolia.");
+        loadResults();
+      } catch (err) {
+        setStatus("Connection failed: " + (err.shortMessage || err.message));
+      }
+    }
+
+    // Read functions (free, no gas): show team bars
+    async function loadResults() {
+      if (!contract) { setStatus("Please connect MetaMask first."); return; }
+      try {
+        const result = await contract.getResults();
+        const names = result[0];
+        const counts = result[1].map((c) => Number(c));
+        const total = Number(await contract.getTotalVotes());
+        const alreadyVoted = await contract.hasUserVoted(userAddress);
+
+        $("total").innerText = total;
+        $("myVote").innerText = alreadyVoted ? "You have voted" : "Not voted yet";
+
+        const maxVotes = Math.max(...counts);
+        let html = "";
+        for (let i = 0; i < names.length; i++) {
+          const percent = total === 0 ? 0 : Math.round((counts[i] / total) * 100);
+          const isLeader = maxVotes > 0 && counts[i] === maxVotes;
+          html += `
+            <div class="team ${isLeader ? "leader" : ""}">
+              <div class="team-top">
+                <span class="name">${isLeader ? "👑 " : ""}${names[i]}</span>
+                <span>${counts[i]} votes (${percent}%)
+                  <button onclick="castVote(${i})" ${alreadyVoted ? "disabled" : ""}>Vote</button>
+                </span>
+              </div>
+              <div class="bar-bg"><div class="bar" style="width:${percent}%"></div></div>
+            </div>`;
+        }
+        $("teams").innerHTML = html;
+      } catch (err) {
+        setStatus("Read failed: " + (err.shortMessage || err.message));
+      }
+    }
+
+    // Write functions (cost gas, need MetaMask confirmation)
+    async function sendTx(txFunction) {
+      if (!contract) { setStatus("Please connect MetaMask first."); return; }
+      try {
+        setStatus("Waiting for MetaMask confirmation...");
+        const tx = await txFunction();
+        $("txHash").innerText = tx.hash;
+        $("txLink").href = "https://sepolia.etherscan.io/tx/" + tx.hash;
+        $("txLink").style.display = "inline";
+        setStatus("Transaction sent. Waiting for it to be mined...");
+        await tx.wait();
+        setStatus("Transaction confirmed!");
+        loadResults();
+      } catch (err) {
+        setStatus("Transaction failed: " + (err.reason || err.shortMessage || err.message));
+      }
+    }
+
+    function castVote(teamId) {
+      sendTx(() => contract.vote(teamId));
+    }
+
+    // Button events
+    $("connectBtn").addEventListener("click", connectWallet);
+    $("refreshBtn").addEventListener("click", loadResults);
+    $("closeBtn").addEventListener("click", () => sendTx(() => contract.setPollOpen(false)));
+    $("openBtn").addEventListener("click", () => sendTx(() => contract.setPollOpen(true)));
+
+    // Auto-refresh the live results every 15 seconds
+    setInterval(() => { if (contract) loadResults(); }, 15000);
+  </script>
+</body>
+</html>

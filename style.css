@@ -1,0 +1,55 @@
+body {
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #0f172a, #1e3a8a);
+  color: #222;
+  margin: 0;
+  padding: 20px;
+}
+
+.container {
+  max-width: 700px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 25px 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+h1 { color: #1e3a8a; text-align: center; margin-bottom: 5px; }
+h2 { color: #1e40af; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px; }
+.tagline { text-align: center; color: #555; margin-top: 0; }
+.logo { display: block; margin: 0 auto 5px; width: 90px; }
+
+button {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 9px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+button:hover { background: #1d4ed8; }
+button.secondary { background: #6b7280; }
+button:disabled { background: #9ca3af; cursor: not-allowed; }
+
+.box {
+  background: #eef2ff;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin: 10px 0;
+  word-break: break-all;
+}
+
+/* Team rows with animated bars */
+.team { margin: 14px 0; }
+.team-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.bar-bg { background: #e5e7eb; border-radius: 6px; height: 18px; overflow: hidden; }
+.bar { background: #2563eb; height: 100%; width: 0%; transition: width 0.8s ease; }
+.leader .bar { background: #f59e0b; }
+.leader .name { font-weight: bold; color: #b45309; }
+
+.stats { text-align: center; font-size: 18px; }
+#status { font-weight: bold; }
+a { color: #2563eb; }
+footer { text-align: center; font-size: 13px; color: #666; margin-top: 20px; }
